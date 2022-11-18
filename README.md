@@ -14,7 +14,7 @@ Aplicar conhecimento adquidos nos Cursos Alura
 
 ## Aprimoramento pessoal
 
-Como parte do meu desenvolvimento pessoal e profissional no campo de programador e desenvolvedor, entrei no Challenge completamente inexperiente e pronto para o que vier...
+#Como parte do meu desenvolvimento pessoal e profissional no campo de programador e desenvolvedor, entrei no Challenge completamente inexperiente e pronto para o que vier...
 
 
-PS.: Esse readme será atualizado conforme decorrer do cronograma e minhas conclusões
+#PS.: Esse readme será atualizado conforme decorrer do cronograma e minhas conclusões

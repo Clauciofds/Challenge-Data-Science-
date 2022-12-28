@@ -1,0 +1,1055 @@
+
+Open In Colab
+Iniciando ambiente
+Instalando o PySpark no Google Colab
+
+!pip install pyspark==3.3.1
+     
+Looking in indexes: https://pypi.org/simple, https://us-python.pkg.dev/colab-wheels/public/simple/
+Collecting pyspark==3.3.1
+  Downloading pyspark-3.3.1.tar.gz (281.4 MB)
+     |████████████████████████████████| 281.4 MB 47 kB/s 
+Collecting py4j==0.10.9.5
+  Downloading py4j-0.10.9.5-py2.py3-none-any.whl (199 kB)
+     |████████████████████████████████| 199 kB 64.6 MB/s 
+Building wheels for collected packages: pyspark
+  Building wheel for pyspark (setup.py) ... done
+  Created wheel for pyspark: filename=pyspark-3.3.1-py2.py3-none-any.whl size=281845512 sha256=82273e6f9dabf0b48f72f263d86c6df60fdc748e4c5075cde37f705a3cc4ae72
+  Stored in directory: /root/.cache/pip/wheels/43/dc/11/ec201cd671da62fa9c5cc77078235e40722170ceba231d7598
+Successfully built pyspark
+Installing collected packages: py4j, pyspark
+Successfully installed py4j-0.10.9.5 pyspark-3.3.1
+SparkSession
+O ponto de entrada para programar o Spark com a API Dataset e DataFrame.
+
+
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .master('local[*]') \
+    .appName("Iniciando com Spark") \
+    .config('spark.ui.port', '4050') \
+    .getOrCreate()
+     
+
+spark
+     
+SparkSession - in-memory
+
+SparkContext
+
+Spark UI
+
+Versionv3.3.1Masterlocal[*]AppNameIniciando com Spark
+Baixando conjunto de dados
+
+!wget 'https://caelum-online-public.s3.amazonaws.com/challenge-spark/semana-2.zip' && unzip semana-2.zip -d dados/
+     
+--2022-12-08 00:06:09--  https://caelum-online-public.s3.amazonaws.com/challenge-spark/semana-2.zip
+Resolving caelum-online-public.s3.amazonaws.com (caelum-online-public.s3.amazonaws.com)... 52.217.134.121, 52.216.229.123, 52.216.245.228, ...
+Connecting to caelum-online-public.s3.amazonaws.com (caelum-online-public.s3.amazonaws.com)|52.217.134.121|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 2763652 (2.6M) [application/zip]
+Saving to: ‘semana-2.zip’
+
+semana-2.zip        100%[===================>]   2.63M  2.09MB/s    in 1.3s    
+
+2022-12-08 00:06:11 (2.09 MB/s) - ‘semana-2.zip’ saved [2763652/2763652]
+
+Archive:  semana-2.zip
+   creating: dados/dataset_transformado_parquet/
+  inflating: dados/dataset_transformado_parquet/_SUCCESS  
+  inflating: dados/dataset_transformado_parquet/._SUCCESS.crc  
+  inflating: dados/dataset_transformado_parquet/part-00000-00341ba7-0a7c-4fef-a81e-1066725a64b1-c000.snappy.parquet  
+  inflating: dados/dataset_transformado_parquet/.part-00000-00341ba7-0a7c-4fef-a81e-1066725a64b1-c000.snappy.parquet.crc  
+Modelo de Regressão
+Seleção de Features
+
+# Importando módelos
+from pyspark.sql import functions as f
+from pyspark.sql.types import DoubleType, IntegerType
+     
+
+# Carregando os dados
+dados = spark.read.parquet('/content/dados/dataset_transformado_parquet')
+     
+
+# Visualizando os dados
+dados.show()
+     
++--------------------+-----+----------+---------+---------+--------------------+-------+------+------------+------------+-----------+----+--------------------+------------+----------+----+-----+------+
+|                  id|andar|area_total|area_util|banheiros|     caracteristicas|quartos|suites|tipo_anuncio|tipo_unidade|   tipo_uso|vaga|              bairro|        zona|condominio|iptu| tipo| valor|
++--------------------+-----+----------+---------+---------+--------------------+-------+------+------------+------------+-----------+----+--------------------+------------+----------+----+-----+------+
+|03a386b6-7ab8-4ef...|    0|        43|       43|        1|[Churrasqueira, A...|      2|  null|       Usado| Apartamento|Residencial|   1|            Realengo|  Zona Oeste|       285|null|Venda| 22999|
+|1fe78d41-b8e0-4d2...|    0|        44|       44|        1|                  []|      2|     0|       Usado| Apartamento|Residencial|   0|               Irajá|  Zona Norte|       170|   0|Venda|110000|
+|1fa1c1e5-e98c-433...|    4|      null|       55|        1|                  []|      2|     0|       Usado| Apartamento|Residencial|   1|              Cosmos|  Zona Oeste|      null|null|Venda|115000|
+|a6ab01ae-3d40-40e...|    2|      null|       55|        1|                  []|      2|     0|       Usado| Apartamento|Residencial|   0|        Tomás Coelho|  Zona Norte|      null|null|Venda|115000|
+|1d8ff7a2-16bd-4e3...|    0|      null|       50|        1|                  []|      1|  null|       Usado| Apartamento|Residencial|   0|              Centro|Zona Central|      1300|2679|Venda|125000|
+|40a2cbde-946b-42d...|    2|        47|       47|        1|[Condomínio fecha...|      2|     0|       Usado| Apartamento|Residencial|   1|        Campo Grande|  Zona Oeste|       380|null|Venda|138000|
+|be269ddf-a4a3-4a7...|    0|     17089|       45|        1|[Churrasqueira, C...|      2|     0|       Usado| Apartamento|Residencial|   1|        Campo Grande|  Zona Oeste|       356|   0|Venda|140000|
+|4b7e3d59-34fd-4ba...|    3|        48|       48|        1|[Churrasqueira, P...|      2|  null|       Usado| Apartamento|Residencial|   1|        Campo Grande|  Zona Oeste|         0|   0|Venda|150000|
+|a1a0c2ac-4fa8-4b0...|    9|      null|       55|        1|[Churrasqueira, E...|      2|  null|       Usado| Apartamento|Residencial|   1|Freguesia (Jacare...|  Zona Oeste|       780| 660|Venda|160000|
+|390d2b88-e06d-47e...|    0|        70|       70|        2|   [Salão de festas]|      2|     0|       Usado| Apartamento|Residencial|   1|          Praça Seca|  Zona Oeste|    420000|null|Venda|159000|
+|07bb07c1-21cc-4da...|    2|        50|       48|        1|[Condomínio fecha...|      1|     0|       Usado| Apartamento|Residencial|   0|             Piedade|  Zona Norte|        10|  10|Venda|170000|
+|7d3a1bae-988c-44b...|    5|        40|       40|        1|[Playground, Chur...|      2|     0|       Usado| Apartamento|Residencial|   1|        Braz de Pina|  Zona Norte|       150| 120|Venda|189000|
+|47af17f0-1c81-474...|    0|        65|       65|        1|                  []|      2|     0|       Usado| Apartamento|Residencial|   1|            Campinho|  Zona Oeste|       432|null|Venda|185000|
+|a9bd1575-e9f2-43d...|    2|        50|       50|        1|[Condomínio fecha...|      1|     0|       Usado| Apartamento|Residencial|   1|           Madureira|  Zona Norte|       650|   1|Venda|185000|
+|cfca7253-3d02-4cd...|    5|        45|       45|        1|[Academia, Churra...|      2|     1|       Usado| Apartamento|Residencial|   0|             Taquara|  Zona Oeste|       150|  40|Venda|199000|
+|b571ae97-e3d8-4fb...|    0|        48|       48|        1|[Academia, Condom...|      2|  null|       Usado| Apartamento|Residencial|   0|          Bonsucesso|  Zona Norte|         0|   0|Venda|205933|
+|eb5fdc65-acae-45f...|    0|        44|       44|        1|[Academia, Condom...|      2|  null|       Usado| Apartamento|Residencial|   0|          Bonsucesso|  Zona Norte|         0|   0|Venda|206000|
+|77cd0388-e3ff-40c...|    2|        64|       64|        1|                  []|      2|     0|       Usado| Apartamento|Residencial|   0|      Jardim América|  Zona Norte|         0|   0|Venda|220000|
+|74a91f07-7387-4a8...|    0|        55|       55|        2|[Salão de festas,...|      1|     0|       Usado| Apartamento|Residencial|   1|        Engenho Novo|  Zona Norte|       600| 652|Venda|219130|
+|6aab1165-508d-455...|    3|        60|       60|        1|[Animais permitidos]|      3|     0|       Usado| Apartamento|Residencial|   1|           Cascadura|  Zona Norte|        98|   1|Venda|230000|
++--------------------+-----+----------+---------+---------+--------------------+-------+------+------------+------------+-----------+----+--------------------+------------+----------+----+-----+------+
+only showing top 20 rows
+
+
+# Visualizando o Schema
+dados.printSchema()
+     
+root
+ |-- id: string (nullable = true)
+ |-- andar: long (nullable = true)
+ |-- area_total: string (nullable = true)
+ |-- area_util: string (nullable = true)
+ |-- banheiros: long (nullable = true)
+ |-- caracteristicas: array (nullable = true)
+ |    |-- element: string (containsNull = true)
+ |-- quartos: long (nullable = true)
+ |-- suites: long (nullable = true)
+ |-- tipo_anuncio: string (nullable = true)
+ |-- tipo_unidade: string (nullable = true)
+ |-- tipo_uso: string (nullable = true)
+ |-- vaga: long (nullable = true)
+ |-- bairro: string (nullable = true)
+ |-- zona: string (nullable = true)
+ |-- condominio: string (nullable = true)
+ |-- iptu: string (nullable = true)
+ |-- tipo: string (nullable = true)
+ |-- valor: string (nullable = true)
+
+Convertendo Tipos
+Algumas colunas estão com os tipos errados, por isso serão realizadas transformaçãoes (casting) para os tipos corretos:
+
+"area_total", "area_util", "iptu" e "valor" --> Double
+
+"andar", "banheiros", "quartos", "suites" e "vaga" e "condominio" --> Integer
+
+
+# Dicionário com a coluna e seu tipo correspondente
+dict_casting = {'area_total': DoubleType, 'area_util': DoubleType, 'iptu': DoubleType, 'valor': DoubleType, 
+                 'andar': IntegerType, 'banheiros': IntegerType, 'quartos': IntegerType, 'suites': IntegerType, 'vaga': IntegerType, 'condominio': IntegerType}
+
+# Realizando o casting com base no dicionário
+dados = dados\
+    .select(
+        [f.col(col).cast(dict_casting[col]()).alias(col) if col in dict_casting else col for col in dados.columns]
+    )
+     
+
+dados.printSchema()
+     
+root
+ |-- id: string (nullable = true)
+ |-- andar: integer (nullable = true)
+ |-- area_total: double (nullable = true)
+ |-- area_util: double (nullable = true)
+ |-- banheiros: integer (nullable = true)
+ |-- caracteristicas: array (nullable = true)
+ |    |-- element: string (containsNull = true)
+ |-- quartos: integer (nullable = true)
+ |-- suites: integer (nullable = true)
+ |-- tipo_anuncio: string (nullable = true)
+ |-- tipo_unidade: string (nullable = true)
+ |-- tipo_uso: string (nullable = true)
+ |-- vaga: integer (nullable = true)
+ |-- bairro: string (nullable = true)
+ |-- zona: string (nullable = true)
+ |-- condominio: integer (nullable = true)
+ |-- iptu: double (nullable = true)
+ |-- tipo: string (nullable = true)
+ |-- valor: double (nullable = true)
+
+Retirando colunas com valores únicos
+Algumas colunas possuem valores únicos, pois foram filtradas no processamento anterior. Por isso serão excluídas
+
+
+# Verificando se essas colunas realmente possuem apenas um valor
+lista_valores_unicos = ['tipo_anuncio', 'tipo_unidade', 'tipo_uso', 'bairro', 'zona', 'tipo']
+
+for i in lista_valores_unicos:
+    dados\
+        .groupBy(i)\
+        .count()\
+        .show()
+     
++------------+-----+
+|tipo_anuncio|count|
++------------+-----+
+|       Usado|66562|
++------------+-----+
+
++------------+-----+
+|tipo_unidade|count|
++------------+-----+
+| Apartamento|66562|
++------------+-----+
+
++-----------+-----+
+|   tipo_uso|count|
++-----------+-----+
+|Residencial|66562|
++-----------+-----+
+
++-------------------+-----+
+|             bairro|count|
++-------------------+-----+
+|             Cocotá|   16|
+|       Tomás Coelho|   38|
+|              Gávea|  597|
+|            Ipanema| 2113|
+|           Realengo|   46|
+|      Gardênia Azul|    7|
+|      Bento Ribeiro|   33|
+|              Rocha|   38|
+|Vicente de Carvalho|   86|
+|         Manguinhos|    1|
+|       Campo Grande|  639|
+|        Jacarepaguá| 4437|
+|               Leme|  234|
+|           Botafogo| 3499|
+|       Padre Miguel|   15|
+|       Santo Cristo|  357|
+|           Flamengo| 1378|
+|  Engenho da Rainha|   25|
+| Pedra de Guaratiba|   12|
+|            Piedade|  104|
++-------------------+-----+
+only showing top 20 rows
+
++------------+-----+
+|        zona|count|
++------------+-----+
+|  Zona Norte|11897|
+|  Zona Oeste|32979|
+|Zona Central| 1144|
+|    Zona Sul|20531|
+|            |   11|
++------------+-----+
+
++-----+-----+
+| tipo|count|
++-----+-----+
+|Venda|66562|
++-----+-----+
+
+As colunas "tipo_anuncio", "tipo_unidade", "tipo_uso" e "tipo" serão retiradas, porque possuem apenas uma categoria o que não fornece nenhuma informação para o modelo
+
+
+dados = dados.drop('tipo_anuncio', 'tipo_unidade', 'tipo_uso', 'tipo')
+     
+A coluna bairro possui muitas classes com poucos valores, o que não agrega informações uteis ao modelo. Por isso será retirada
+
+
+dados = dados.drop('bairro')
+     
+
+# Verificando como a tabela dados está até o momento
+dados.show(truncate=False)
+     
++------------------------------------+-----+----------+---------+---------+-----------------------------------------------------------------------------------------------------------------------------------------+-------+------+----+------------+----------+------+--------+
+|id                                  |andar|area_total|area_util|banheiros|caracteristicas                                                                                                                          |quartos|suites|vaga|zona        |condominio|iptu  |valor   |
++------------------------------------+-----+----------+---------+---------+-----------------------------------------------------------------------------------------------------------------------------------------+-------+------+----+------------+----------+------+--------+
+|03a386b6-7ab8-4eff-891d-f8a16efc1989|0    |43.0      |43.0     |1        |[Churrasqueira, Academia, Playground, Salão de festas, Condomínio fechado, Portão eletrônico, Portaria 24h, Animais permitidos]          |2      |null  |1   |Zona Oeste  |285       |null  |22999.0 |
+|1fe78d41-b8e0-4d21-a1a8-72cb7863f441|0    |44.0      |44.0     |1        |[]                                                                                                                                       |2      |0     |0   |Zona Norte  |170       |0.0   |110000.0|
+|1fa1c1e5-e98c-433f-9675-1b43d7d6da01|4    |null      |55.0     |1        |[]                                                                                                                                       |2      |0     |1   |Zona Oeste  |null      |null  |115000.0|
+|a6ab01ae-3d40-40e7-bb6a-f2334e0abbe0|2    |null      |55.0     |1        |[]                                                                                                                                       |2      |0     |0   |Zona Norte  |null      |null  |115000.0|
+|1d8ff7a2-16bd-4e3f-a92e-1b85f923ebb0|0    |null      |50.0     |1        |[]                                                                                                                                       |1      |null  |0   |Zona Central|1300      |2679.0|125000.0|
+|40a2cbde-946b-42da-b7f2-b80057c7a47f|2    |47.0      |47.0     |1        |[Condomínio fechado, Portaria 24h, Salão de festas, Churrasqueira, Piscina, Animais permitidos]                                          |2      |0     |1   |Zona Oeste  |380       |null  |138000.0|
+|be269ddf-a4a3-4a72-bd54-93cdccf512dd|0    |17089.0   |45.0     |1        |[Churrasqueira, Condomínio fechado, Piscina]                                                                                             |2      |0     |1   |Zona Oeste  |356       |0.0   |140000.0|
+|4b7e3d59-34fd-4bac-9232-1015cb3b3a24|3    |48.0      |48.0     |1        |[Churrasqueira, Piscina, Playground, Salão de festas, Condomínio fechado, Portão eletrônico, Portaria 24h, Animais permitidos]           |2      |null  |1   |Zona Oeste  |0         |0.0   |150000.0|
+|a1a0c2ac-4fa8-4b02-a087-f9d76b6bccb7|9    |null      |55.0     |1        |[Churrasqueira, Elevador, Salão de festas, Condomínio fechado, Portão eletrônico, Portaria 24h, Animais permitidos]                      |2      |null  |1   |Zona Oeste  |780       |660.0 |160000.0|
+|390d2b88-e06d-47e5-ba7f-a680130ac5f0|0    |70.0      |70.0     |2        |[Salão de festas]                                                                                                                        |2      |0     |1   |Zona Oeste  |420000    |null  |159000.0|
+|07bb07c1-21cc-4daa-99c4-e12b53da67d2|2    |50.0      |48.0     |1        |[Condomínio fechado, Animais permitidos]                                                                                                 |1      |0     |0   |Zona Norte  |10        |10.0  |170000.0|
+|7d3a1bae-988c-44b9-8e42-99267dda4245|5    |40.0      |40.0     |1        |[Playground, Churrasqueira, Salão de festas, Condomínio fechado, Portão eletrônico, Portaria 24h, Animais permitidos]                    |2      |0     |1   |Zona Norte  |150       |120.0 |189000.0|
+|47af17f0-1c81-474c-b7ec-fefbe48954d0|0    |65.0      |65.0     |1        |[]                                                                                                                                       |2      |0     |1   |Zona Oeste  |432       |null  |185000.0|
+|a9bd1575-e9f2-43d7-850c-c8d1385e6908|2    |50.0      |50.0     |1        |[Condomínio fechado, Portão eletrônico, Animais permitidos]                                                                              |1      |0     |1   |Zona Norte  |650       |1.0   |185000.0|
+|cfca7253-3d02-4cdc-99de-714ad1b4cc61|5    |45.0      |45.0     |1        |[Academia, Churrasqueira, Condomínio fechado, Elevador, Playground, Portão eletrônico, Portaria 24h, Salão de festas, Animais permitidos]|2      |1     |0   |Zona Oeste  |150       |40.0  |199000.0|
+|b571ae97-e3d8-4fbf-80b9-2c2c78fb02c1|0    |48.0      |48.0     |1        |[Academia, Condomínio fechado, Elevador, Portaria 24h, Salão de festas, Churrasqueira, Portão eletrônico, Animais permitidos]            |2      |null  |0   |Zona Norte  |0         |0.0   |205933.0|
+|eb5fdc65-acae-45f8-9075-b5238b19bd9e|0    |44.0      |44.0     |1        |[Academia, Condomínio fechado, Elevador, Portaria 24h, Salão de festas, Playground, Portão eletrônico, Animais permitidos]               |2      |null  |0   |Zona Norte  |0         |0.0   |206000.0|
+|77cd0388-e3ff-40c3-928c-f4d535049bff|2    |64.0      |64.0     |1        |[]                                                                                                                                       |2      |0     |0   |Zona Norte  |0         |0.0   |220000.0|
+|74a91f07-7387-4a8e-bfbe-c8aec0bf645f|0    |55.0      |55.0     |2        |[Salão de festas, Elevador]                                                                                                              |1      |0     |1   |Zona Norte  |600       |652.0 |219130.0|
+|6aab1165-508d-4554-b122-b61c178109de|3    |60.0      |60.0     |1        |[Animais permitidos]                                                                                                                     |3      |0     |1   |Zona Norte  |98        |1.0   |230000.0|
++------------------------------------+-----+----------+---------+---------+-----------------------------------------------------------------------------------------------------------------------------------------+-------+------+----+------------+----------+------+--------+
+only showing top 20 rows
+
+Tratando valores nulos
+As colunas possuem valores nulos que não são bem interpretados pelos modelos, por isso será feito um tratamento neles
+
+
+# Transformando dados nulos de todas as colunas com numerais para zero
+dados = dados\
+    .na\
+    .fill(0)
+     
+
+# Transformando listas vazias "[]" em None
+dados = dados\
+    .withColumn('caracteristicas',
+                f.when(f.size('caracteristicas') == 0, None)\
+                .otherwise( dados['caracteristicas'] )
+                )
+     
+
+# Removendo amostras onde a zona é uma string vazia ('')
+dados = dados\
+    .where(dados['zona'] != '')
+     
+
+dados\
+    .groupBy('caracteristicas')\
+    .count()\
+    .orderBy('caracteristicas')\
+    .show(truncate=False)
+     
++--------------------------------------------------------------------------------------------------------------------------------------------------+-----+
+|caracteristicas                                                                                                                                   |count|
++--------------------------------------------------------------------------------------------------------------------------------------------------+-----+
+|null                                                                                                                                              |12731|
+|[Academia]                                                                                                                                        |57   |
+|[Academia, Animais permitidos]                                                                                                                    |2    |
+|[Academia, Animais permitidos, Churrasqueira, Elevador, Piscina, Playground, Condomínio fechado, Salão de festas]                                 |1    |
+|[Academia, Animais permitidos, Churrasqueira, Elevador, Playground, Salão de festas, Piscina, Condomínio fechado]                                 |1    |
+|[Academia, Animais permitidos, Churrasqueira, Playground, Elevador, Piscina, Condomínio fechado, Salão de festas]                                 |1    |
+|[Academia, Animais permitidos, Churrasqueira, Salão de festas, Elevador]                                                                          |1    |
+|[Academia, Animais permitidos, Condomínio fechado, Churrasqueira, Piscina, Salão de festas, Elevador]                                             |1    |
+|[Academia, Animais permitidos, Condomínio fechado, Churrasqueira, Playground, Salão de festas, Elevador, Piscina]                                 |1    |
+|[Academia, Animais permitidos, Condomínio fechado, Elevador, Playground, Salão de festas, Piscina, Churrasqueira]                                 |1    |
+|[Academia, Animais permitidos, Condomínio fechado, Elevador, Salão de festas, Piscina, Churrasqueira, Playground]                                 |1    |
+|[Academia, Animais permitidos, Condomínio fechado, Piscina, Elevador, Churrasqueira, Playground, Salão de festas]                                 |1    |
+|[Academia, Animais permitidos, Elevador, Piscina, Salão de festas, Churrasqueira, Condomínio fechado, Playground]                                 |1    |
+|[Academia, Animais permitidos, Elevador, Playground, Churrasqueira, Salão de festas, Piscina, Portaria 24h, Condomínio fechado, Portão eletrônico]|1    |
+|[Academia, Animais permitidos, Elevador, Playground, Salão de festas, Churrasqueira, Condomínio fechado, Piscina]                                 |1    |
+|[Academia, Animais permitidos, Piscina, Churrasqueira, Condomínio fechado, Playground, Salão de festas]                                           |1    |
+|[Academia, Animais permitidos, Piscina, Churrasqueira, Salão de festas, Condomínio fechado, Elevador]                                             |1    |
+|[Academia, Animais permitidos, Piscina, Elevador, Churrasqueira, Salão de festas, Condomínio fechado, Playground]                                 |1    |
+|[Academia, Animais permitidos, Piscina, Elevador, Playground, Salão de festas]                                                                    |1    |
+|[Academia, Animais permitidos, Piscina, Playground, Salão de festas, Elevador, Condomínio fechado, Portão eletrônico, Portaria 24h]               |1    |
++--------------------------------------------------------------------------------------------------------------------------------------------------+-----+
+only showing top 20 rows
+
+Criando variáveis dummy
+Os modelos não conseguem ler dados categóricos puros, por isso são utilizadas técnicas para transfomá-los em numeros, sendo um destes a criação de variáveis dummy
+
+As colunas que se enquadram nessa descrição são "caracteristicas" e "zona"
+
+
+# Essa coluna possui arrays, por isso foi utilizado o método explode para separar os arrays em novas amostras
+caracteristicas_dummy = dados\
+    .select('id', f.explode('caracteristicas').alias('explode_caracteristicas'))\
+    .groupBy('id')\
+    .pivot('explode_caracteristicas')\
+    .agg(f.lit(1))\
+    .na\
+    .fill(0)
+     
+
+zona_dummy = dados\
+    .select('id', 'zona')\
+    .groupBy('id')\
+    .pivot('zona')\
+    .agg(f.lit(1))\
+    .na\
+    .fill(0)
+     
+
+# Juntando as variáveis dummy ao dataframe dados utilizando join
+dados = dados\
+    .join(caracteristicas_dummy, 'id', how='inner')\
+    .join(zona_dummy, 'id', how='inner')
+     
+
+# Retirando as colunas que originaram as variáveis dummy
+dataset = dados\
+    .drop('caracteristicas')\
+    .drop('zona')
+     
+
+# Conjunto de dados até agora
+dataset.show()
+     
++--------------------+-----+----------+---------+---------+-------+------+----+----------+-------+---------+--------+------------------+-------------+------------------+--------+-------+----------+------------+-----------------+---------------+------------+----------+----------+--------+
+|                  id|andar|area_total|area_util|banheiros|quartos|suites|vaga|condominio|   iptu|    valor|Academia|Animais permitidos|Churrasqueira|Condomínio fechado|Elevador|Piscina|Playground|Portaria 24h|Portão eletrônico|Salão de festas|Zona Central|Zona Norte|Zona Oeste|Zona Sul|
++--------------------+-----+----------+---------+---------+-------+------+----+----------+-------+---------+--------+------------------+-------------+------------------+--------+-------+----------+------------+-----------------+---------------+------------+----------+----------+--------+
+|fd96bbd5-d631-416...|    0|       0.0|     48.0|        1|      2|     1|   1|         1|    1.0| 315000.0|       1|                 1|            1|                 1|       1|      1|         1|           1|                1|              1|           0|         0|         1|       0|
+|bfffedfe-99e7-4ae...|    3|      60.0|     60.0|        2|      2|     0|   1|      1000|  700.0| 440000.0|       0|                 1|            1|                 1|       1|      0|         1|           0|                1|              1|           0|         1|         0|       0|
+|fcb67af3-5601-415...|    0|      69.0|     69.0|        2|      2|     1|   2|      1030| 2130.0| 629000.0|       1|                 1|            1|                 0|       0|      1|         1|           0|                0|              1|           0|         0|         1|       0|
+|afecddff-f4cc-4ab...|    4|      85.0|     85.0|        2|      2|     1|   1|       957| 2900.0|1100000.0|       1|                 1|            1|                 1|       1|      1|         1|           1|                1|              1|           0|         0|         0|       1|
+|1bbc40f3-4f5c-459...|    6|       0.0|    328.0|        4|      4|     4|   3|         0|    0.0| 1.0302E7|       1|                 0|            0|                 1|       1|      1|         1|           1|                1|              1|           0|         0|         0|       1|
+|fd26aeb2-a7b3-4f8...|    8|      54.0|     54.0|        2|      2|     1|   0|       350|  105.0| 340000.0|       1|                 1|            1|                 1|       1|      1|         1|           1|                1|              1|           1|         0|         0|       0|
+|10e9d118-dbad-43c...|    0|       0.0|     56.0|        2|      2|     1|   1|         0|    0.0| 359000.0|       0|                 1|            1|                 1|       0|      1|         1|           1|                1|              1|           0|         1|         0|       0|
+|ca1e84d7-86c8-4b1...|    0|      55.0|     55.0|        2|      2|     1|   1|       400|    1.0| 376000.0|       1|                 0|            1|                 1|       1|      1|         1|           1|                1|              1|           0|         1|         0|       0|
+|d9e139a5-e85d-4e1...|    1|      55.0|     55.0|        2|      3|     1|   1|         1|    1.0| 400100.0|       1|                 1|            1|                 1|       1|      1|         1|           1|                1|              1|           0|         0|         1|       0|
+|156a1fa5-37ca-43d...|    2|      74.0|     74.0|        2|      2|     1|   2|       790| 1400.0| 700000.0|       1|                 0|            1|                 1|       1|      1|         1|           1|                1|              1|           0|         0|         1|       0|
+|e7be09eb-6223-4b4...|    9|      87.0|     87.0|        2|      3|     1|   1|      1722| 2190.0| 733700.0|       1|                 1|            1|                 1|       1|      1|         1|           1|                1|              1|           0|         0|         1|       0|
+|631efda0-5e10-422...|    0|       0.0|     80.0|        1|      1|     1|   1|      1200|  235.0| 895000.0|       1|                 1|            1|                 1|       1|      1|         1|           1|                1|              1|           0|         0|         1|       0|
+|07cbfef2-efbf-4e8...|    1|     120.0|    120.0|        2|      3|     0|   0|       950|  270.0| 950000.0|       0|                 1|            0|                 0|       1|      0|         0|           1|                0|              0|           0|         0|         0|       1|
+|62baf185-103d-448...|    0|     100.0|    100.0|        2|      2|     1|   1|      2000|  290.0|1000000.0|       1|                 0|            1|                 1|       0|      1|         1|           0|                0|              0|           0|         0|         1|       0|
+|3030d17c-5681-4b2...|    2|      97.0|     97.0|        2|      2|     2|   1|      1260| 1500.0|1200000.0|       1|                 1|            1|                 1|       1|      1|         0|           1|                1|              1|           0|         0|         0|       1|
+|6179c8a4-1fd2-4f5...|    0|     356.0|    356.0|        8|      4|     4|   3|      4400|10000.0|2700000.0|       1|                 1|            0|                 1|       1|      1|         1|           1|                1|              1|           0|         0|         1|       0|
+|c284072a-7298-4e5...|    5|      55.0|     55.0|        2|      2|     1|   1|       460|  500.0| 320000.0|       1|                 1|            1|                 1|       1|      1|         1|           1|                1|              1|           0|         0|         1|       0|
+|7e43514c-3b40-4fb...|    6|       0.0|    113.0|        3|      3|     2|   2|       700|  150.0| 620000.0|       1|                 1|            1|                 1|       1|      1|         1|           1|                1|              1|           0|         0|         1|       0|
+|6a4ce9ac-1eb0-4d4...|    0|      75.0|     75.0|        2|      3|     1|   1|         0|    0.0| 740900.0|       1|                 0|            1|                 0|       1|      1|         1|           0|                0|              1|           0|         1|         0|       0|
+|bdc6127a-1d97-41b...|    0|     126.0|    126.0|        3|      2|     1|   2|      1640| 2583.0| 795000.0|       1|                 0|            1|                 0|       0|      0|         0|           0|                0|              1|           0|         1|         0|       0|
++--------------------+-----+----------+---------+---------+-------+------+----+----------+-------+---------+--------+------------------+-------------+------------------+--------+-------+----------+------------+-----------------+---------------+------------+----------+----------+--------+
+only showing top 20 rows
+
+Salvando dataset processado
+O dataset processado será salvo para utilizações futuras
+
+
+dataset.write.parquet(
+    '/content/dados/dataset_processado_ml',
+    'overwrite'
+)
+     
+Preparando dados para inserção no modelo
+
+from pyspark.ml.feature import VectorAssembler
+     
+
+# Renomeando "valor" para "label"
+dataset = dataset.withColumnRenamed('valor', 'label')
+     
+
+# Selecionando as colunas que atuarão como features
+X = dataset.drop('id', 'label').columns
+     
+
+X
+     
+['andar',
+ 'area_total',
+ 'area_util',
+ 'banheiros',
+ 'quartos',
+ 'suites',
+ 'vaga',
+ 'condominio',
+ 'iptu',
+ 'Academia',
+ 'Animais permitidos',
+ 'Churrasqueira',
+ 'Condomínio fechado',
+ 'Elevador',
+ 'Piscina',
+ 'Playground',
+ 'Portaria 24h',
+ 'Portão eletrônico',
+ 'Salão de festas',
+ 'Zona Central',
+ 'Zona Norte',
+ 'Zona Oeste',
+ 'Zona Sul']
+
+assembler = VectorAssembler(inputCols=X, outputCol='features')
+     
+
+# Transformando os dados em vetores
+dataset_prep = assembler.transform(dataset).select('features', 'label')
+     
+
+dataset_prep.show()
+     
++--------------------+---------+
+|            features|    label|
++--------------------+---------+
+|[0.0,0.0,48.0,1.0...| 315000.0|
+|[3.0,60.0,60.0,2....| 440000.0|
+|[0.0,69.0,69.0,2....| 629000.0|
+|[4.0,85.0,85.0,2....|1100000.0|
+|[6.0,0.0,328.0,4....| 1.0302E7|
+|[8.0,54.0,54.0,2....| 340000.0|
+|(23,[2,3,4,5,6,10...| 359000.0|
+|[0.0,55.0,55.0,2....| 376000.0|
+|[1.0,55.0,55.0,2....| 400100.0|
+|[2.0,74.0,74.0,2....| 700000.0|
+|[9.0,87.0,87.0,2....| 733700.0|
+|[0.0,0.0,80.0,1.0...| 895000.0|
+|(23,[0,1,2,3,4,7,...| 950000.0|
+|(23,[1,2,3,4,5,6,...|1000000.0|
+|[2.0,97.0,97.0,2....|1200000.0|
+|[0.0,356.0,356.0,...|2700000.0|
+|[5.0,55.0,55.0,2....| 320000.0|
+|[6.0,0.0,113.0,3....| 620000.0|
+|(23,[1,2,3,4,5,6,...| 740900.0|
+|(23,[1,2,3,4,5,6,...| 795000.0|
++--------------------+---------+
+only showing top 20 rows
+
+Verificando correlação entre as variáveis
+
+from pyspark.ml.stat import Correlation
+import pandas as pd
+     
+
+correlacao = Correlation.corr(dataset_prep, 'features').collect()
+     
+
+correlacao = correlacao[0][0]
+     
+
+df_corr = pd.DataFrame(correlacao.toArray(), columns=X, index=X)
+     
+
+df_corr
+     
+andar	area_total	area_util	banheiros	quartos	suites	vaga	condominio	iptu	Academia	...	Elevador	Piscina	Playground	Portaria 24h	Portão eletrônico	Salão de festas	Zona Central	Zona Norte	Zona Oeste	Zona Sul
+andar	1.000000	0.000233	0.020889	0.015930	0.009954	0.017759	0.013261	0.004862	-0.000513	0.047240	...	0.050480	0.021052	0.033553	0.074800	0.068083	0.038230	0.035354	-0.009712	-0.000230	-0.002185
+area_total	0.000233	1.000000	-0.002097	0.001330	0.001144	-0.000666	0.000364	-0.000358	-0.000242	0.005776	...	0.004467	0.006181	0.006966	0.007467	0.007831	0.007405	0.002431	-0.000145	0.004768	-0.005932
+area_util	0.020889	-0.002097	1.000000	0.686366	0.674062	0.632294	0.491658	0.045239	0.022311	0.006967	...	0.033466	0.028465	-0.014270	-0.025044	0.002254	-0.028293	-0.107634	-0.170873	0.133501	0.028488
+banheiros	0.015930	0.001330	0.686366	1.000000	0.667164	0.741722	0.458799	0.026960	0.014011	0.085130	...	0.061639	0.111956	0.069803	-0.056596	-0.033011	0.056768	-0.132955	-0.166267	0.197056	-0.038690
+quartos	0.009954	0.001144	0.674062	0.667164	1.000000	0.596462	0.447261	0.022126	0.017929	0.074023	...	0.036810	0.104275	0.096806	-0.028381	-0.019777	0.076783	-0.168396	-0.124420	0.185675	-0.050780
+suites	0.017759	-0.000666	0.632294	0.741722	0.596462	1.000000	0.464657	0.028670	0.011209	0.244828	...	0.084341	0.273196	0.179403	0.046470	0.059335	0.160148	-0.110830	-0.213892	0.278102	-0.095412
+vaga	0.013261	0.000364	0.491658	0.458799	0.447261	0.464657	1.000000	0.024853	0.011946	0.136633	...	0.023170	0.174891	0.127828	0.004867	0.020121	0.127242	-0.104357	-0.108763	0.247438	-0.152326
+condominio	0.004862	-0.000358	0.045239	0.026960	0.022126	0.028670	0.024853	1.000000	0.205853	0.011718	...	0.009650	0.006297	0.005923	0.008875	0.002302	0.005211	-0.004732	-0.010113	0.000279	0.009697
+iptu	-0.000513	-0.000242	0.022311	0.014011	0.017929	0.011209	0.011946	0.205853	1.000000	-0.000156	...	0.001213	-0.001890	-0.003613	-0.005602	-0.009092	-0.003528	-0.003941	-0.008811	-0.007506	0.017040
+Academia	0.047240	0.005776	0.006967	0.085130	0.074023	0.244828	0.136633	0.011718	-0.000156	1.000000	...	0.270428	0.688896	0.595288	0.381260	0.292719	0.619865	0.039871	-0.136884	0.367612	-0.306140
+Animais permitidos	0.088243	0.008299	-0.010923	-0.043620	-0.026625	0.028458	0.009153	0.009532	-0.006413	0.278314	...	0.252789	0.109882	0.170610	0.589621	0.613032	0.216872	0.054028	-0.019250	0.022542	-0.025147
+Churrasqueira	0.024563	0.007209	-0.024583	0.040106	0.076368	0.175256	0.125387	0.001431	-0.007983	0.601459	...	0.112706	0.680302	0.524314	0.208727	0.144999	0.544167	-0.010422	-0.050767	0.439720	-0.444459
+Condomínio fechado	0.076296	0.006178	-0.010113	-0.022443	-0.001011	0.115753	0.057152	0.008864	-0.011222	0.487405	...	0.288652	0.326151	0.318745	0.608784	0.595954	0.351153	0.044807	-0.101256	0.190343	-0.140044
+Elevador	0.050480	0.004467	0.033466	0.061639	0.036810	0.084341	0.023170	0.009650	0.001213	0.270428	...	1.000000	0.139805	0.167879	0.334189	0.290655	0.164465	0.033248	-0.017984	-0.062057	0.074459
+Piscina	0.021052	0.006181	0.028465	0.111956	0.104275	0.273196	0.174891	0.006297	-0.001890	0.688896	...	0.139805	1.000000	0.541208	0.218429	0.137687	0.545742	0.003356	-0.157210	0.459694	-0.380620
+Playground	0.033553	0.006966	-0.014270	0.069803	0.096806	0.179403	0.127828	0.005923	-0.003613	0.595288	...	0.167879	0.541208	1.000000	0.276673	0.193190	0.660977	-0.016356	-0.032312	0.276601	-0.276301
+Portaria 24h	0.074800	0.007467	-0.025044	-0.056596	-0.028381	0.046470	0.004867	0.008875	-0.005602	0.381260	...	0.334189	0.218429	0.276673	1.000000	0.731803	0.307590	0.047241	-0.077716	0.017812	0.031777
+Portão eletrônico	0.068083	0.007831	0.002254	-0.033011	-0.019777	0.059335	0.020121	0.002302	-0.009092	0.292719	...	0.290655	0.137687	0.193190	0.731803	1.000000	0.220558	0.039939	-0.027154	0.020076	-0.011434
+Salão de festas	0.038230	0.007405	-0.028293	0.056768	0.076783	0.160148	0.127242	0.005211	-0.003528	0.619865	...	0.164465	0.545742	0.660977	0.307590	0.220558	1.000000	-0.003007	-0.008943	0.300488	-0.326811
+Zona Central	0.035354	0.002431	-0.107634	-0.132955	-0.168396	-0.110830	-0.104357	-0.004732	-0.003941	0.039871	...	0.033248	0.003356	-0.016356	0.047241	0.039939	-0.003007	1.000000	-0.063251	-0.146381	-0.085091
+Zona Norte	-0.009712	-0.000145	-0.170873	-0.166267	-0.124420	-0.213892	-0.108763	-0.010113	-0.008811	-0.136884	...	-0.017984	-0.157210	-0.032312	-0.077716	-0.027154	-0.008943	-0.063251	1.000000	-0.488545	-0.283992
+Zona Oeste	-0.000230	0.004768	0.133501	0.197056	0.185675	0.278102	0.247438	0.000279	-0.007506	0.367612	...	-0.062057	0.459694	0.276601	0.017812	0.020076	0.300488	-0.146381	-0.488545	1.000000	-0.657242
+Zona Sul	-0.002185	-0.005932	0.028488	-0.038690	-0.050780	-0.095412	-0.152326	0.009697	0.017040	-0.306140	...	0.074459	-0.380620	-0.276301	0.031777	-0.011434	-0.326811	-0.085091	-0.283992	-0.657242	1.000000
+23 rows × 23 columns
+
+Criando visualização das correlações para compreensão mais fácil
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+     
+
+plt.figure(figsize=(20, 8))
+paleta = sns.color_palette('light:salmon', as_cmap=True)
+mask = np.triu(np.ones_like(df_corr), True)
+sns.heatmap(df_corr, annot=True, mask=mask, cmap=paleta)
+     
+
+Criando modelos de regressão
+
+# Separando em treino e teste
+treino, teste = dataset_prep.randomSplit([.7, .3], seed=101)
+     
+Tabela de Comparação dos Modelos
+Para comparar o resultado dos modelos no final, será construido um DataFrame no pandas
+
+
+modelos_resultado = {
+    'modelo': [],
+    'particao': [],
+    'crossvalidation': [],
+    'r2': [],
+    'rmse': []
+}
+     
+
+def adiciona_resultado(*args):
+    for valor, resultado in zip(modelos_resultado.values(), args):
+        valor.append(resultado)
+     
+
+modelos_resultado
+     
+{'modelo': [], 'particao': [], 'crossvalidation': [], 'r2': [], 'rmse': []}
+Regressão Linear
+
+from pyspark.ml.regression import LinearRegression
+     
+
+# Instanciando modelo
+lr = LinearRegression()
+     
+
+# Treinando o modelo
+modelo_lr = lr.fit(treino)
+     
+Treino
+
+
+# Gerando resumo da performance do modelo para os dados de treino
+resumo_modelo = modelo_lr.summary
+     
+
+resumo_modelo.r2
+     
+0.6781339512094222
+
+resumo_modelo.rootMeanSquaredError
+     
+836049.2076567278
+Teste
+
+
+resumo_teste = modelo_lr.evaluate(teste)
+     
+
+resumo_teste.r2
+     
+0.6663408560991568
+
+resumo_teste.rootMeanSquaredError
+     
+897038.7361500504
+
+# Visualizando a performance de ambos
+print('Linear Regression')
+print("="*30)
+print("Dados de Treino")
+print("="*30)
+print(f"R²: {resumo_modelo.r2}")
+print(f"RMSE: {resumo_modelo.rootMeanSquaredError}")
+print("")
+print("="*30)
+print("Dados de Teste")
+print("="*30)
+print(f"R²: {resumo_teste.r2}")
+print(f"RMSE: {resumo_teste.rootMeanSquaredError}")
+     
+Linear Regression
+==============================
+Dados de Treino
+==============================
+R²: 0.6781339512094222
+RMSE: 836049.2076567278
+
+==============================
+Dados de Teste
+==============================
+R²: 0.6663408560991568
+RMSE: 897038.7361500504
+
+# Adicionando resultados no dicionário
+adiciona_resultado('linear_regression', 'treino', False, resumo_modelo.r2, resumo_modelo.rootMeanSquaredError)
+adiciona_resultado('linear_regression', 'teste', False, resumo_teste.r2, resumo_teste.rootMeanSquaredError)
+     
+Decision Tree
+
+from pyspark.ml.regression import DecisionTreeRegressor
+from pyspark.ml.evaluation import RegressionEvaluator
+     
+
+# Criando avaliador de algoritmos de regressão
+evaluator = RegressionEvaluator()
+     
+
+dtr = DecisionTreeRegressor(maxDepth=7, seed=101)
+     
+
+modelo_dtr = dtr.fit(treino)
+     
+
+previsoes_dtr_treino = modelo_dtr.transform(treino)
+     
+
+previsoes_dtr_teste = modelo_dtr.transform(teste)
+     
+
+def mostra_metricas(nome_modelo, previsoes_treino, previsoes_teste):
+    print(nome_modelo)
+    print("="*30)
+    print("Dados de Treino")
+    print("="*30)
+    print(f"R²: {evaluator.evaluate(previsoes_treino, {evaluator.metricName : 'r2'})}")
+    print(f"RMSE: {evaluator.evaluate(previsoes_treino, {evaluator.metricName : 'rmse'})}")
+    print("")
+    print("="*30)
+    print("Dados de Teste")
+    print("="*30)
+    print(f"R²: {evaluator.evaluate(previsoes_teste, {evaluator.metricName : 'r2'})}")
+    print(f"RMSE: {evaluator.evaluate(previsoes_teste, {evaluator.metricName : 'rmse'})}")
+     
+
+mostra_metricas('Decision Tree', previsoes_dtr_treino, previsoes_dtr_teste)
+     
+Decision Tree
+==============================
+Dados de Treino
+==============================
+R²: 0.8132376128270711
+RMSE: 636852.6546854678
+
+==============================
+Dados de Teste
+==============================
+R²: 0.7889064952226067
+RMSE: 713505.1578826366
+
+# Adicionando resultados no dicionário
+adiciona_resultado('decision_tree', 'treino', False, evaluator.evaluate(previsoes_dtr_treino, {evaluator.metricName : 'r2'}), 
+                   evaluator.evaluate(previsoes_dtr_treino, {evaluator.metricName : 'rmse'}))
+adiciona_resultado('decision_tree', 'teste', False, evaluator.evaluate(previsoes_dtr_teste, {evaluator.metricName : 'r2'}), 
+                   evaluator.evaluate(previsoes_dtr_teste, {evaluator.metricName : 'rmse'}))
+     
+Random Forest
+
+from pyspark.ml.regression import RandomForestRegressor
+     
+
+rfr = RandomForestRegressor(maxDepth=7, numTrees=10, seed=101)
+     
+
+modelo_rfr = rfr.fit(treino)
+     
+
+previsoes_rfr_treino = modelo_rfr.transform(treino)
+     
+
+previsoes_rfr_teste = modelo_rfr.transform(teste)
+     
+
+mostra_metricas('Random Forest', previsoes_rfr_treino, previsoes_rfr_teste)
+     
+Random Forest
+==============================
+Dados de Treino
+==============================
+R²: 0.8243974954548107
+RMSE: 617532.200316511
+
+==============================
+Dados de Teste
+==============================
+R²: 0.8062599744285541
+RMSE: 683548.5368866394
+
+# Adicionando resultados no dicionário
+adiciona_resultado('random_forest', 'treino', False, evaluator.evaluate(previsoes_rfr_treino, {evaluator.metricName : 'r2'}), 
+                   evaluator.evaluate(previsoes_rfr_treino, {evaluator.metricName : 'rmse'}))
+adiciona_resultado('random_forest', 'teste', False, evaluator.evaluate(previsoes_rfr_teste, {evaluator.metricName : 'r2'}), 
+                   evaluator.evaluate(previsoes_rfr_teste, {evaluator.metricName : 'rmse'}))
+     
+Gradient-boosted Tree
+
+from pyspark.ml.regression import GBTRegressor
+     
+
+gbtr = GBTRegressor(maxDepth=7, seed=101)
+     
+
+modelo_gbtr = gbtr.fit(treino)
+     
+
+previsoes_gbtr_treino = modelo_gbtr.transform(treino)
+     
+
+previsoes_gbtr_teste = modelo_gbtr.transform(teste)
+     
+
+mostra_metricas('GBT', previsoes_gbtr_treino, previsoes_gbtr_teste)
+     
+GBT
+==============================
+Dados de Treino
+==============================
+R²: 0.8817375477898308
+RMSE: 506777.932371128
+
+==============================
+Dados de Teste
+==============================
+R²: 0.825047264001588
+RMSE: 649561.1633894956
+
+# Adicionando resultados no dicionário
+adiciona_resultado('GBT', 'treino', False, evaluator.evaluate(previsoes_gbtr_treino, {evaluator.metricName : 'r2'}), 
+                   evaluator.evaluate(previsoes_gbtr_treino, {evaluator.metricName : 'rmse'}))
+adiciona_resultado('GBT', 'teste', False, evaluator.evaluate(previsoes_gbtr_teste, {evaluator.metricName : 'r2'}), 
+                   evaluator.evaluate(previsoes_gbtr_teste, {evaluator.metricName : 'rmse'}))
+     
+Otimizando Modelos
+Utilizando CrossValidator e ParamGridBuilder
+
+
+# Importando os módulos
+from pyspark.ml.tuning import CrossValidator, ParamGridBuilder
+     
+Regressão Linear
+
+lr = LinearRegression()
+     
+
+# Criando o grid com um intervalo de valores que serão utilizados no hiperparâmetros
+grid = ParamGridBuilder()\
+    .addGrid(lr.loss, ['squaredError', 'huber'])\
+    .build()
+     
+
+# Criando o modelo com crossvalidation
+lr_cv = CrossValidator(
+    estimator=lr,
+    estimatorParamMaps=grid,
+    evaluator=evaluator,
+    numFolds=3,
+    seed=101
+)
+     
+
+# Ajustando o modelo aos dados
+modelo_lr_cv = lr_cv.fit(treino)
+     
+
+# Prevendo resultados a partir dos dados de treino
+previsoes_lr_cv_treino = modelo_lr_cv.transform(treino)
+     
+
+# Prevendo resultados a partir dos dados de teste
+previsoes_lr_cv_teste = modelo_lr_cv.transform(teste)
+     
+
+# Extraindo métricas
+mostra_metricas('Linear Regression Cross Validator', previsoes_lr_cv_treino, previsoes_lr_cv_teste)
+     
+Linear Regression Cross Validator
+==============================
+Dados de Treino
+==============================
+R²: 0.6781339512094222
+RMSE: 836049.2076567278
+
+==============================
+Dados de Teste
+==============================
+R²: 0.6663408560991568
+RMSE: 897038.7361500504
+
+# Adicionando resultados no dicionário
+adiciona_resultado('linear_regression', 'treino', True, evaluator.evaluate(previsoes_lr_cv_treino, {evaluator.metricName : 'r2'}), 
+                   evaluator.evaluate(previsoes_lr_cv_treino, {evaluator.metricName : 'rmse'}))
+adiciona_resultado('linear_regression', 'teste', True, evaluator.evaluate(previsoes_lr_cv_teste, {evaluator.metricName : 'r2'}), 
+                   evaluator.evaluate(previsoes_lr_cv_teste, {evaluator.metricName : 'rmse'}))
+     
+Decision Tree
+
+dtr = DecisionTreeRegressor()
+     
+
+grid_dtr = ParamGridBuilder()\
+    .addGrid(dtr.maxDepth, [2, 5, 10])\
+    .addGrid(dtr.maxBins, [10, 32, 45])\
+    .build()
+     
+
+dtr_cv = CrossValidator(
+    estimator=dtr,
+    estimatorParamMaps=grid,
+    evaluator=evaluator,
+    numFolds=3,
+    seed=101
+)
+     
+
+modelo_dtr_cv = dtr_cv.fit(treino)
+     
+
+previsoes_dtr_cv_treino = modelo_dtr_cv.transform(treino)
+     
+
+previsoes_dtr_cv_teste = modelo_dtr_cv.transform(teste)
+     
+
+mostra_metricas('Decision Tree Cross Validator', previsoes_dtr_cv_treino, previsoes_dtr_cv_teste)
+     
+Decision Tree Cross Validator
+==============================
+Dados de Treino
+==============================
+R²: 0.7409429908510399
+RMSE: 750052.9593265728
+
+==============================
+Dados de Teste
+==============================
+R²: 0.7376416279587225
+RMSE: 795439.4852887809
+
+# Adicionando resultados no dicionário
+adiciona_resultado('decision_tree', 'treino', True, evaluator.evaluate(previsoes_dtr_cv_treino, {evaluator.metricName : 'r2'}), 
+                   evaluator.evaluate(previsoes_dtr_cv_treino, {evaluator.metricName : 'rmse'}))
+adiciona_resultado('decision_tree', 'teste', True, evaluator.evaluate(previsoes_dtr_cv_teste, {evaluator.metricName : 'r2'}), 
+                   evaluator.evaluate(previsoes_dtr_cv_teste, {evaluator.metricName : 'rmse'}))
+     
+Random Forest
+
+rfr = RandomForestRegressor()
+     
+
+grif_rfr = ParamGridBuilder()\
+    .addGrid(rfr.numTrees, [10, 20, 30])\
+    .addGrid(rfr.maxDepth, [5, 10])\
+    .addGrid(rfr.maxBins, [10, 32, 45])\
+    .build()
+     
+
+rfr_cv = CrossValidator(
+    estimator=rfr,
+    estimatorParamMaps=grid,
+    evaluator=evaluator,
+    numFolds=3,
+    seed=101
+)
+     
+
+modelo_rfr_cv = rfr_cv.fit(treino)
+     
+
+previsoes_rfr_cv_treino = modelo_rfr_cv.transform(treino)
+     
+
+previsoes_rfr_cv_teste = modelo_rfr_cv.transform(teste)
+     
+
+mostra_metricas('Random Forest Cross Validator', previsoes_rfr_cv_treino, previsoes_rfr_cv_teste)
+     
+Random Forest Cross Validator
+==============================
+Dados de Treino
+==============================
+R²: 0.76971954482656
+RMSE: 707168.316979512
+
+==============================
+Dados de Teste
+==============================
+R²: 0.7645552084925438
+RMSE: 753536.381633913
+
+# Adicionando resultados no dicionário
+adiciona_resultado('random_forest', 'treino', True, evaluator.evaluate(previsoes_rfr_cv_treino, {evaluator.metricName : 'r2'}), 
+                   evaluator.evaluate(previsoes_rfr_cv_treino, {evaluator.metricName : 'rmse'}))
+adiciona_resultado('random_forest', 'teste', True, evaluator.evaluate(previsoes_rfr_cv_teste, {evaluator.metricName : 'r2'}), 
+                   evaluator.evaluate(previsoes_rfr_cv_teste, {evaluator.metricName : 'rmse'}))
+     
+Gradient-boosted Tree
+
+gbtr = GBTRegressor()
+     
+
+grid = ParamGridBuilder()\
+    .addGrid(gbtr.maxDepth, [5, 10])\
+    .addGrid(gbtr.maxBins, [20, 32, 45])\
+    .addGrid(gbtr.lossType, ['squared', 'absolute'])\
+    .build()
+     
+
+gbtr_cv = CrossValidator(
+    estimator = gbtr,
+    estimatorParamMaps=grid,
+    evaluator=evaluator,
+    numFolds=3,
+    seed=101
+)
+     
+
+modelo_gbtr_cv = gbtr_cv.fit(treino)
+     
+
+previsoes_gbtr_cv_treino = modelo_gbtr_cv.transform(treino)
+     
+
+previsoes_gbtr_cv_teste = modelo_gbtr_cv.transform(teste)
+     
+
+mostra_metricas('GBT Cross Validor', previsoes_gbtr_cv_treino, previsoes_gbtr_cv_teste)
+     
+GBT Cross Validor
+==============================
+Dados de Treino
+==============================
+R²: 0.8322404123831469
+RMSE: 603584.2937938767
+
+==============================
+Dados de Teste
+==============================
+R²: 0.8154458743442596
+RMSE: 667147.0358283649
+
+# Adicionando resultados no dicionário
+adiciona_resultado('GBT', 'treino', True, evaluator.evaluate(previsoes_gbtr_cv_treino, {evaluator.metricName : 'r2'}), 
+                   evaluator.evaluate(previsoes_gbtr_cv_treino, {evaluator.metricName : 'rmse'}))
+adiciona_resultado('GBT', 'teste', True, evaluator.evaluate(previsoes_gbtr_cv_teste, {evaluator.metricName : 'r2'}), 
+                   evaluator.evaluate(previsoes_gbtr_cv_teste, {evaluator.metricName : 'rmse'}))
+     
+Comparando Modelos
+
+# Criando DataFrame com o dicionário contendo os resultados dos modelos
+df_resultado = pd.DataFrame(modelos_resultado)
+     
+
+# visualizando o DataFrame
+df_resultado
+     
+modelo	particao	crossvalidation	r2	rmse
+0	linear_regression	treino	False	67.813395	836049.207657
+1	linear_regression	teste	False	66.634086	897038.736150
+2	decision_tree	treino	False	81.323761	636852.654685
+3	decision_tree	teste	False	78.890650	713505.157883
+4	random_forest	treino	False	82.439750	617532.200317
+5	random_forest	teste	False	80.625997	683548.536887
+6	GBT	treino	False	88.173755	506777.932371
+7	GBT	teste	False	82.504726	649561.163389
+8	linear_regression	treino	True	67.813395	836049.207657
+9	linear_regression	teste	True	66.634086	897038.736150
+10	decision_tree	treino	True	74.094299	750052.959327
+11	decision_tree	teste	True	73.764163	795439.485289
+12	random_forest	treino	True	76.971954	707168.316980
+13	random_forest	teste	True	76.455521	753536.381634
+14	GBT	treino	True	83.224041	603584.293794
+15	GBT	teste	True	81.544587	667147.035828
+
+# Multiplicando o r2 por 100 para transformá-lo em %
+df_resultado['r2'] = df_resultado['r2'] * 100
+     
+
+# Definindo paleta de cores padrão do seaborn
+sns.set()
+     
+
+# Criando um DataFrame para plotagem
+df_plot = df_resultado.groupby('modelo')\
+    .mean()\
+    .reset_index()\
+    .sort_values(by='r2')
+     
+O gráfico nos mostra que o modelo com melhor desempenho na métrica r2 foi o GBT
+
+
+# Criando gráfico de barras com desempenho de cada modelo na métrica r2
+plt.figure(figsize=(12, 8))
+ax = sns.barplot(data=df_plot, x='modelo', y='r2')
+     
+
+E a métrica RMSE também afiram que o melhor modelo é o GBT
+
+
+# Criando gráfico de barras com desempenho de cada modelo na métrica rmse
+plt.figure(figsize=(12, 8))
+ax = sns.barplot(data=df_plot, x='modelo', y='rmse')
+     
+
+O gráfico abaixo mostra que o modelo é mais performático sem o crossvalidation, mostrando o quanto este é importante, pois revela a verdadeira performance do modelo utilizando os dados como um todo
+
+
+# Gráfico separado entre métricas retiradas de modelos com crossvalidation e sem
+plt.figure(figsize=(12, 8))
+sns.barplot(data=df_resultado, x='modelo', y='r2', hue='crossvalidation')
+     
